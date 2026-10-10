@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Studio Histoire IA — Créer des histoires en vidéo</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+        --bg: #fafafa; --panel: #ffffff; --panel-2: #f5f5f5; --border: #e5e5e5;
+        --ink: #1a1a1a; --ink-dim: #777; --ink-faint: #aaa;
+        --success: #2d8a4e; --error: #c0392b; --warn: #d4a017; --info: #4a6cf7;
+        --purple: #7c3aed;
+        --radius: 12px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        background: var(--bg); color: var(--ink); min-height: 100vh;
+        padding: 1.5rem 1rem 6rem; font-size: 15px; line-height: 1.5; max-width: 900px; margin: 0 auto; }
+    header { margin-bottom: 1.5rem; text-align: center; }
+    h1 { font-size: 1.4rem; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 0.3rem; }
+    .subtitle { font-size: 0.8rem; color: var(--ink-dim); font-style: italic; }
+    .toast { position: fixed; top: 1.5rem; left: 50%; transform: translateX(-50%) translateY(-100px);
+        background: var(--ink); color: #fff; padding: 0.85rem 1.4rem; border-radius: 10px;
+        font-size: 0.85rem; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        z-index: 1000; opacity: 0; transition: transform 0.35s ease, opacity 0.35s ease;
+        max-width: 90vw; text-align: center; display: flex; align-items: center; gap: 0.5rem; }
+    .toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--error); }
+    .toast.warn { background: var(--warn); }
+    .toast .toast-icon { font-size: 1rem; }
+    .info-banner { background: #eef4ff; border-left: 3px solid var(--info);
+        padding: 0.75rem 0.95rem; border-radius: 8px; font-size: 0.78rem; color: #2a3a5c;
+        margin-bottom: 1rem; line-height: 1.45; }
+    .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3rem;
+        margin-bottom: 1rem; background: var(--panel); border-radius: var(--radius);
+        padding: 0.3rem; border: 1px solid var(--border); }
+    .tab { padding: 0.65rem 0.4rem; border-radius: 8px; text-align: center; cursor: pointer;
+        user-select: none; transition: all 0.2s; font-weight: 600; color: var(--ink-dim); }
+    .tab.active { background: var(--ink); color: #fff; }
+    .tab .tab-emoji { font-size: 1.15rem; display: block; margin-bottom: 0.1rem; }
+    .tab .tab-name { font-size: 0.65rem; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .section { background: var(--panel); border: 1px solid var(--border);
+        border-radius: var(--radius); margin-bottom: 1rem; overflow: hidden; }
+    .section-header { padding: 0.9rem 1.1rem; cursor: pointer;
+        display: flex; justify-content: space-between; align-items: center; }
+    .section-header:active { background: var(--panel-2); }
+    .section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--ink-dim); font-weight: 600; }
+    .section-title .badge { display: inline-block; margin-left: 0.4rem; padding: 0.1rem 0.4rem;
+        background: var(--ink); color: #fff; border-radius: 10px; font-size: 0.65rem; }
+    .section-title .badge.priority { background: var(--error); }
+    .section-title .badge.pro { background: var(--purple); }
+    .section-header .chevron { font-size: 0.7rem; color: var(--ink-faint); transition: transform 0.2s; }
+    .section.open .section-header .chevron { transform: rotate(180deg); }
+    .section-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+    .section.open .section-body { max-height: 10000px; }
+    .section-content { padding: 0 1.1rem 1.1rem; }
+    .api-panel { background: var(--panel); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1rem; }
+    .api-panel.ok { border-color: var(--success); }
+    .api-key-input { width: 100%; padding: 0.85rem 1rem; border-radius: 8px;
+        border: 1px solid var(--border); background: #fafafa; color: var(--ink);
+        font-family: ui-monospace, monospace; font-size: 0.85rem; margin-bottom: 0.6rem; }
+    .api-save-btn { width: 100%; padding: 0.8rem; border-radius: 8px; border: none;
+        background: var(--ink); color: #fff; font-size: 0.9rem; font-weight: 600;
+        font-family: inherit; cursor: pointer; margin-bottom: 0.6rem; }
+    .api-status-line { font-size: 0.75rem; padding: 0.55rem 0.85rem;
+        border-radius: 6px; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;
+        background: var(--panel-2); color: var(--ink-dim); }
+    .api-status-line.ok { background: #e3f5e9; color: var(--success); font-weight: 600; }
+    .api-status-line .status-dot { width: 8px; height: 8px; border-radius: 50%;
+        background: var(--ink-faint); flex-shrink: 0; }
+    .api-status-line.ok .status-dot { background: var(--success); }
+    .api-hint { font-size: 0.72rem; color: var(--ink-dim); margin-top: 0.4rem; line-height: 1.5; }
+    .api-hint a { color: var(--ink); text-decoration: underline; }
+    .input-group { margin-bottom: 0.9rem; }
+    .control-label { display: block; font-size: 0.72rem; color: var(--ink-dim);
+        margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+    .control-label.critical { color: var(--error); font-weight: 700; }
+    input[type="text"], input[type="number"], textarea, select {
+        width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border);
+        background: #fafafa; color: var(--ink); font-family: inherit; font-size: 0.9rem; }
+    textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--ink); }
+    select { -webkit-appearance: none; appearance: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%231a1a1a' d='M0 0l5 6 5-6z'/></svg>");
+        background-repeat: no-repeat; background-position: right 0.9rem center; background-size: 10px; }
+    .styles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.4rem; }
+    .style-card { padding: 0.6rem 0.7rem; border-radius: 8px; border: 1px solid var(--border);
+        background: #fafafa; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; }
+    .style-card.selected { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .style-card .style-emoji { font-size: 1.1rem; }
+    .style-card .style-name { font-size: 0.72rem; font-weight: 500; line-height: 1.1; }
+    .style-card .style-desc { font-size: 0.58rem; opacity: 0.65; }
+    .style-category-header { grid-column: 1 / -1; font-size: 0.65rem; font-weight: 600;
+        color: #777; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.5rem 0 0.2rem;
+        border-bottom: 1px solid var(--border); margin-bottom: 0.2rem; }
+    .no-style-card { grid-column: 1 / -1; padding: 0.7rem 1rem; border-radius: 8px;
+        border: 2px dashed var(--border); text-align: center; cursor: pointer;
+        font-size: 0.78rem; color: #777; }
+    .no-style-card.selected { border-color: var(--ink); border-style: solid;
+        background: #f5f5f5; color: var(--ink); font-weight: 600; }
+    .scenes-list { display: flex; flex-direction: column; gap: 0.8rem; }
+    .scene-card { background: var(--panel); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 1rem; }
+    .scene-card .scene-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.8rem; }
+    .scene-card .scene-num { background: var(--purple); color: #fff;
+        width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center;
+        justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+    .scene-card .scene-title { font-size: 0.85rem; font-weight: 600; flex: 1; }
+    .scene-card .scene-status { font-size: 0.68rem; padding: 0.2rem 0.6rem; border-radius: 10px;
+        background: var(--panel-2); color: var(--ink-dim); text-transform: uppercase; font-weight: 600; }
+    .scene-card .scene-status.done { background: #e3f5e9; color: var(--success); }
+    .scene-card .scene-status.processing { background: #fff5e3; color: var(--warn); }
+    .scene-card .scene-status.failed { background: #fce3e3; color: var(--error); }
+    .scene-field { margin-bottom: 0.7rem; }
+    .scene-field label { display: block; font-size: 0.68rem; color: var(--ink-dim);
+        margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+    .scene-field input, .scene-field textarea, .scene-field select { font-size: 0.85rem; padding: 0.6rem 0.8rem; }
+    .scene-field textarea { min-height: 60px; }
+    .scene-image-upload { border: 2px dashed var(--border); border-radius: 8px;
+        padding: 1rem; text-align: center; cursor: pointer; margin-bottom: 0.6rem; }
+    .scene-image-upload:active { border-color: var(--ink); background: #f5f5f5; }
+    .scene-image-upload input { display: none; }
+    .scene-image-upload.has-image { padding: 0.4rem; cursor: default; }
+    .scene-image-upload img { width: 100%; max-height: 150px; object-fit: contain; border-radius: 6px; }
+    .scene-image-upload .upload-text { font-size: 0.78rem; }
+    .scene-image-upload .upload-hint { font-size: 0.65rem; color: var(--ink-dim); }
+    .scene-image-remove { padding: 0.3rem 0.6rem; border: 1px solid var(--border);
+        background: #fff; border-radius: 6px; font-size: 0.68rem; color: var(--error);
+        cursor: pointer; font-family: inherit; }
+    .scene-image-remove.use-all { color: #4a6cf7; border-color: #4a6cf7; background: #eef4ff; }
+    .scene-video { margin-top: 0.6rem; border-radius: 8px; overflow: hidden;
+        border: 1px solid var(--border); background: #000; }
+    .scene-video video { width: 100%; display: block; aspect-ratio: 9/16; object-fit: cover; }
+    .chain-selector { display: flex; flex-direction: column; gap: 0.4rem; }
+    .chain-option { padding: 0.7rem 0.9rem; border-radius: 8px; border: 1px solid var(--border);
+        background: #fafafa; cursor: pointer; display: flex; align-items: center; gap: 0.6rem;
+        transition: all 0.15s; }
+    .chain-option.selected { border-color: var(--ink); background: var(--ink); color: #fff; }
+    .chain-option .chain-radio { width: 16px; height: 16px; border-radius: 50%;
+        border: 2px solid var(--border); flex-shrink: 0; transition: all 0.15s; }
+    .chain-option.selected .chain-radio { border-color: #fff; background: #fff;
+        box-shadow: inset 0 0 0 3px var(--ink); }
+    .chain-option .chain-label { font-size: 0.8rem; font-weight: 500; }
+    .chain-option .chain-desc { font-size: 0.65rem; opacity: 0.65; margin-top: 0.1rem; }
+    button.primary { width: 100%; padding: 1rem; border: none; border-radius: 12px;
+        background: var(--ink); color: #fff; font-size: 1rem; font-weight: 600;
+        cursor: pointer; font-family: inherit; margin-bottom: 1rem; }
+    button.primary:disabled { opacity: 0.3; cursor: not-allowed; }
+    button.purple { background: var(--purple); }
+    button.stop { width: 100%; padding: 0.8rem; border: 1px solid var(--border);
+        border-radius: 12px; background: #fff; color: var(--error); font-size: 0.85rem;
+        font-weight: 600; cursor: pointer; font-family: inherit; margin-bottom: 1rem; display: none; }
+    button.stop.visible { display: block; }
+    .add-scene-btn { width: 100%; padding: 0.8rem; border: 2px dashed var(--border);
+        background: transparent; border-radius: 8px; font-size: 0.85rem; color: var(--ink-dim);
+        cursor: pointer; font-family: inherit; margin-bottom: 1rem; }
+    .add-scene-btn:active { border-color: var(--ink); background: #f5f5f5; }
+    .timer-box { background: var(--panel); border: 1px solid var(--border);
+        border-radius: 12px; padding: 1rem; margin-bottom: 1rem; display: none; }
+    .timer-box.visible { display: block; }
+    .timer-value { font-size: 2rem; font-weight: 600; text-align: center;
+        font-family: ui-monospace, monospace; margin-bottom: 0.3rem; }
+    .timer-label { font-size: 0.72rem; color: #777; text-align: center;
+        text-transform: uppercase; letter-spacing: 0.06em; }
+    .progress-bar { width: 100%; height: 6px; background: #f5f5f5;
+        border-radius: 3px; overflow: hidden; margin-top: 0.8rem; }
+    .progress-bar .fill { height: 100%; background: var(--purple);
+        transition: width 0.3s; width: 0%; }
+    .story-videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; }
+    .story-video-item { border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
+        background: #000; position: relative; }
+    .story-video-item video { width: 100%; display: block; aspect-ratio: 9/16; object-fit: cover; }
+    .story-video-item .caption { padding: 0.4rem 0.6rem; background: #fff;
+        font-size: 0.68rem; color: var(--ink-dim); display: flex;
+        justify-content: space-between; align-items: center; }
+    .story-video-item .caption .actions { display: flex; gap: 0.3rem; }
+    .story-video-item .caption a { font-size: 0.65rem; text-decoration: none;
+        padding: 0.2rem 0.4rem; border-radius: 4px; font-family: inherit;
+        cursor: pointer; border: none; background: var(--success); color: #fff; }
+    .empty-state { text-align: center; padding: 2rem; color: var(--ink-dim); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Studio Histoire IA</h1>
+    <p class="subtitle">Créez des histoires en vidéo, scène par scène</p>
+</header>
+
+<div class="info-banner">
+    <strong>Créez une histoire complète :</strong> écrivez chaque scène, choisissez le style et la durée,
+    et l'IA génère les vidéos <strong>au fur et à mesure</strong>.
+    Utilisez <strong>📌 Utiliser dans toutes les scènes</strong> pour copier une image de référence partout.
+</div>
+
+<div class="api-panel" id="api-panel">
+    <input type="password" class="api-key-input" id="api-key-input"
+           placeholder="Clé API Agnes (sk-...)" autocomplete="off" spellcheck="false">
+    <button type="button" class="api-save-btn" id="api-save-btn">Enregistrer la clé Agnes</button>
+    <div class="api-status-line" id="api-status-line">
+        <span class="status-dot"></span>
+        <span id="api-status-text">Aucune clé API enregistrée</span>
+    </div>
+    <div class="api-hint">
+        Clé gratuite sur <a href="https://platform.agnes-ai.com" target="_blank">platform.agnes-ai.com</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <div class="tab active" data-tab="tab-story">
+        <span class="tab-emoji">📖</span>
+        <div class="tab-name">Histoire</div>
+    </div>
+    <div class="tab" data-tab="tab-style">
+        <span class="tab-emoji">🎨</span>
+        <div class="tab-name">Style</div>
+    </div>
+    <div class="tab" data-tab="tab-videos">
+        <span class="tab-emoji">🎬</span>
+        <div class="tab-name">Vidéos</div>
+    </div>
+</div>
+
+<div class="tab-panel active" id="tab-story">
+
+    <div class="section open">
+        <div class="section-header" data-toggle="section-info">
+            <span class="section-title">📖 Titre de l'histoire</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+            <div class="section-content">
+                <div class="input-group">
+                    <label class="control-label">Titre</label>
+                    <input type="text" id="story-title" placeholder="Exemple : Course poursuite à Paris">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section open">
+        <div class="section-header" data-toggle="section-chain">
+            <span class="section-title">🔗 Enchaînement des scènes</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+            <div class="section-content">
+                <div class="chain-selector">
+                    <div class="chain-option selected" data-chain="A">
+                        <div class="chain-radio"></div>
+                        <div>
+                            <div class="chain-label">🅰️ Scènes indépendantes</div>
+                            <div class="chain-desc">Chaque scène est sa propre vidéo, sans continuité</div>
+                        </div>
+                    </div>
+                    <div class="chain-option" data-chain="B">
+                        <div class="chain-radio"></div>
+                        <div>
+                            <div class="chain-label">🅱️ Scènes qui se suivent</div>
+                            <div class="chain-desc">Même personnage, même lieu, continuité visuelle</div>
+                        </div>
+                    </div>
+                    <div class="chain-option" data-chain="C">
+                        <div class="chain-radio"></div>
+                        <div>
+                            <div class="chain-label">🅲 Auto-génération (optionnel)</div>
+                            <div class="chain-desc">L'IA génère la suite à partir de la scène 1 (plus lourd)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section open">
+        <div class="section-header" data-toggle="section-duration">
+            <span class="section-title">⏱️ Durée des vidéos</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+            <div class="section-content">
+                <div class="input-group">
+                    <label class="control-label">Durée par vidéo</label>
+                    <select id="story-duration">
+                        <option value="121">5 secondes</option>
+                        <option value="153" selected>6,4 secondes</option>
+                        <option value="241">10 secondes</option>
+                        <option value="361">15 secondes</option>
+                        <option value="481">20 secondes</option>
+                        <option value="721">30 secondes</option>
+                        <option value="1441">60 secondes</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section open">
+        <div class="section-header" data-toggle="section-scenes">
+            <span class="section-title">🎬 Scènes <span class="badge" id="scenes-count">0</span></span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+            <div class="section-content">
+                <div class="scenes-list" id="scenes-list"></div>
+                <button type="button" class="add-scene-btn" id="add-scene-btn">＋ Ajouter une scène</button>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="primary purple" id="generate-all-btn" disabled>
+        🎬 Générer toute l'histoire
+    </button>
+    <button type="button" class="stop" id="stop-btn">⏹ Arrêter la génération</button>
+
+    <div class="timer-box" id="timer-box">
+        <div class="timer-value" id="timer-value">00:00</div>
+        <div class="timer-label" id="timer-label">Préparation...</div>
+        <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+    </div>
+</div>
+
+<div class="tab-panel" id="tab-style">
+    <div class="section open">
+        <div class="section-header" data-toggle="section-style">
+            <span class="section-title">🎨 Style visuel global</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+            <div class="section-c
